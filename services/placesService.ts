@@ -2,6 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PLACES_API_KEY_STORAGE = '@suggest_food_places_api_key';
 
+export interface Review {
+    name: string;
+    relativePublishTimeDescription: string;
+    rating: number;
+    text: string;
+    authorPhotoUri?: string;
+}
+
 export interface NearbyRestaurant {
     id: string;
     name: string;
@@ -13,6 +21,7 @@ export interface NearbyRestaurant {
     distance?: string;
     photoUrl?: string;
     types: string[];
+    reviews?: Review[];
 }
 
 class PlacesService {
@@ -76,7 +85,7 @@ class PlacesService {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': this.apiKey,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location',
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location,places.reviews',
                 },
                 body: JSON.stringify({
                     textQuery: `${foodName} restaurant`,
@@ -113,6 +122,13 @@ class PlacesService {
                 distance: place.location
                     ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
                     : '',
+                reviews: (place.reviews || []).slice(0, 2).map((r: any) => ({
+                    name: r.authorAttribution?.displayName || 'Anonim',
+                    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
+                    rating: r.rating,
+                    text: r.text?.text || '',
+                    authorPhotoUri: r.authorAttribution?.photoUri,
+                })),
             }));
 
             return restaurants;
@@ -141,7 +157,7 @@ class PlacesService {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': this.apiKey,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location',
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location,places.reviews',
                 },
                 body: JSON.stringify({
                     includedTypes: ['restaurant'],
@@ -178,6 +194,13 @@ class PlacesService {
                 distance: place.location
                     ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
                     : '',
+                reviews: (place.reviews || []).slice(0, 2).map((r: any) => ({
+                    name: r.authorAttribution?.displayName || 'Anonim',
+                    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
+                    rating: r.rating,
+                    text: r.text?.text || '',
+                    authorPhotoUri: r.authorAttribution?.photoUri,
+                })),
             }));
 
             return restaurants;
