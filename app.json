@@ -2,7 +2,7 @@
   "expo": {
     "name": "Yemek Öneri",
     "slug": "suggest-food",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,8 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.suggestfood.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Konumunuza göre size en uygun yemekleri önerebilmemiz için konum izni gereklidir.",
-        "NSLocationAlwaysUsageDescription": "Konumunuza göre size en uygun yemekleri önerebilmemiz için konum izni gereklidir.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to suggest the best food and nearby restaurants for you.",
+        "NSLocationAlwaysUsageDescription": "We need your location to suggest the best food and nearby restaurants for you.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -46,7 +46,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Konumunuza göre size en uygun yemekleri önerebilmemiz için konum izni gereklidir."
+          "locationAlwaysAndWhenInUsePermission": "We need your location to suggest the best food and nearby restaurants for you."
         }
       ],
       [

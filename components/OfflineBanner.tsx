@@ -9,26 +9,32 @@ export const OfflineBanner = () => {
     const [heightAnim] = useState(new Animated.Value(0));
 
     useEffect(() => {
-        checkNetworkStatus();
+        let isMounted = true;
 
-        // Periyodik kontrol (expo-network tam bir event listener sunmuyor basitçe)
-        const interval = setInterval(checkNetworkStatus, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const checkNetworkStatus = async () => {
-        try {
-            const status = await Network.getNetworkStateAsync();
-            const connected = status.isConnected ?? false;
-
-            if (connected !== isConnected) {
-                setIsConnected(connected);
-                animateBanner(connected);
+        const checkNetwork = async () => {
+            try {
+                const status = await Network.getNetworkStateAsync();
+                if (isMounted) {
+                    const connected = status?.isConnected ?? true; // Default to true to avoid false positives
+                    if (connected !== isConnected) {
+                        setIsConnected(connected);
+                        animateBanner(connected);
+                    }
+                }
+            } catch (e) {
+                // Silently fail - don't crash the app
+                console.warn('Network check failed:', e);
             }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+        };
+
+        checkNetwork();
+        const interval = setInterval(checkNetwork, 5000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [isConnected]);
 
     const animateBanner = (connected: boolean) => {
         Animated.timing(heightAnim, {

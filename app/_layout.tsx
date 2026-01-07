@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
-import { OfflineBanner } from '../components';
+import { OfflineBanner, ErrorBoundary } from '../components';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -16,7 +16,9 @@ export default function RootLayout() {
     });
 
     useEffect(() => {
-        if (error) throw error;
+        if (error) {
+            console.warn('Font loading error:', error);
+        }
     }, [error]);
 
     useEffect(() => {
@@ -25,20 +27,22 @@ export default function RootLayout() {
         }
     }, [loaded]);
 
-    if (!loaded) {
+    if (!loaded && !error) {
         return null;
     }
 
     return (
-        <>
-            <StatusBar style="light" />
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="mood" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="suggestion" options={{ presentation: 'modal' }} />
-            </Stack>
-            <OfflineBanner />
-        </>
+        <ErrorBoundary>
+            <>
+                <StatusBar style="light" />
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="mood" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="suggestion" options={{ presentation: 'modal' }} />
+                </Stack>
+                <OfflineBanner />
+            </>
+        </ErrorBoundary>
     );
 }
 

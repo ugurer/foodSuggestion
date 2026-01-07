@@ -4,3 +4,4 @@ export { FoodCard } from './FoodCard';
 export { LocationDisplay } from './LocationDisplay';
 export { RestaurantCard } from './RestaurantCard';
 export { OfflineBanner } from './OfflineBanner';
+export { ErrorBoundary } from './ErrorBoundary';
