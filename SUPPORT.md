@@ -4,7 +4,7 @@
 
 If you need help with the Flavor Guide app or have any questions, please reach out to us:
 
-**Email:** ugurer@example.com
+**Email:** slymnugur.er@gmail.com
 
 ## Frequently Asked Questions
 
