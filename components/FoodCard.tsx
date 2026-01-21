@@ -12,13 +12,37 @@ interface FoodCardProps {
     index: number;
     onPress?: (food: Food) => void;
     showFavoriteButton?: boolean;
+    isSelected?: boolean;
 }
+
+import i18n from '../constants/i18n';
+
+// Helper to map hardcoded categories to translation keys
+const getCategoryKey = (category: string): string => {
+    const map: Record<string, string> = {
+        'Fast Food': 'category_fast_food',
+        'Ana Yemek': 'category_main_dish',
+        'Dünya Mutfağı': 'category_world_cuisine',
+        'Geleneksel': 'category_traditional',
+        'Tatlı': 'category_dessert',
+        'Sağlıklı': 'category_healthy',
+        'İçecek': 'category_drink',
+        'Atıştırmalık': 'category_snack',
+        'Meze': 'category_meze',
+        'Bölgesel': 'category_regional',
+        'Bölgesel Tatlı': 'category_regional_dessert',
+        'Bölgesel İçecek': 'category_regional_beverage',
+        'Sokak Lezzeti': 'category_street_food',
+    };
+    return map[category] || `category_${category.toLowerCase().replace(/ /g, '_')}`;
+};
 
 export const FoodCard: React.FC<FoodCardProps> = ({
     food,
     index,
     onPress,
     showFavoriteButton = true,
+    isSelected = false,
 }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -100,23 +124,31 @@ export const FoodCard: React.FC<FoodCardProps> = ({
                 activeOpacity={0.95}
             >
                 <LinearGradient
-                    colors={[Colors.surface + 'E6', Colors.surfaceLight + '99']}
+                    colors={[
+                        isSelected ? Colors.primary + '15' : Colors.surface + 'E6',
+                        isSelected ? Colors.primary + '05' : Colors.surfaceLight + '99'
+                    ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={styles.card}
+                    style={[
+                        styles.card,
+                        isSelected && styles.selectedCard
+                    ]}
                 >
                     <View style={[styles.emojiContainer, { backgroundColor: Colors.primary + '20' }]}>
                         <Text style={styles.emoji}>{food.emoji}</Text>
                     </View>
 
                     <View style={styles.content}>
-                        <Text style={styles.name}>{food.name}</Text>
+                        <Text style={styles.name}>{i18n.t(`food_${food.id}_name`, { defaultValue: food.name })}</Text>
                         <Text style={styles.description} numberOfLines={2}>
-                            {food.description}
+                            {i18n.t(`food_${food.id}_desc`, { defaultValue: food.description })}
                         </Text>
                         <View style={styles.badges}>
                             <View style={styles.categoryBadge}>
-                                <Text style={styles.categoryText}>{food.category}</Text>
+                                <Text style={styles.categoryText}>
+                                    {i18n.t(getCategoryKey(food.category), { defaultValue: food.category })}
+                                </Text>
                             </View>
                             {food.isVegetarian && (
                                 <View style={[styles.dietBadge, { backgroundColor: Colors.success + '20' }]}>
@@ -171,6 +203,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 12,
         elevation: 5,
+    },
+    selectedCard: {
+        borderColor: Colors.primary,
+        borderWidth: 2,
     },
     emojiContainer: {
         width: 60,

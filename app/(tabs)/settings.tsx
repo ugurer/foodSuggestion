@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
 import { storageService, UserPreferences, notificationService } from '../../services';
+import i18n, { setLanguage } from '../../constants/i18n';
+import * as Updates from 'expo-updates';
 
 export default function SettingsScreen() {
     const [preferences, setPreferences] = useState<UserPreferences>({
@@ -13,6 +15,7 @@ export default function SettingsScreen() {
         isGlutenFree: false,
         notificationsEnabled: false,
         notificationTime: '12:00',
+        language: 'auto',
     });
 
     useEffect(() => {
@@ -41,6 +44,18 @@ export default function SettingsScreen() {
         setPreferences(updated);
         await storageService.savePreferences(updated);
 
+        // Dil değişimi kontrolü
+        if (key === 'language') {
+            setLanguage(value as any);
+            Alert.alert(
+                i18n.t('settings_alert_language_title'),
+                i18n.t('settings_alert_language_desc'),
+                [
+                    { text: 'OK' }
+                ]
+            );
+        }
+
         // Bildirim ayarı değiştiyse
         if (key === 'notificationsEnabled') {
             if (value) {
@@ -48,7 +63,7 @@ export default function SettingsScreen() {
                 if (granted) {
                     await notificationService.updateNotificationSchedule();
                 } else {
-                    Alert.alert('İzin Gerekli', 'Bildirimler için izin vermeniz gerekiyor.');
+                    Alert.alert(i18n.t('settings_alert_permission_title'), i18n.t('settings_alert_permission_desc'));
                     setPreferences(prev => ({ ...prev, notificationsEnabled: false }));
                     await storageService.savePreferences({ notificationsEnabled: false });
                 }
@@ -61,17 +76,17 @@ export default function SettingsScreen() {
     const handleTestNotification = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         await notificationService.sendTestNotification();
-        Alert.alert('Bildirim Gönderildi', 'Test bildirimi gönderildi!');
+        Alert.alert(i18n.t('settings_alert_test_title'), i18n.t('settings_alert_test_desc'));
     };
 
     const handleResetPreferences = async () => {
         Alert.alert(
-            'Ayarları Sıfırla',
-            'Tüm tercihleriniz sıfırlanacak. Emin misiniz?',
+            i18n.t('settings_alert_reset_title'),
+            i18n.t('settings_alert_reset_desc'),
             [
-                { text: 'İptal', style: 'cancel' },
+                { text: i18n.t('settings_alert_cancel'), style: 'cancel' },
                 {
-                    text: 'Sıfırla',
+                    text: i18n.t('settings_alert_reset'),
                     style: 'destructive',
                     onPress: async () => {
                         await storageService.resetPreferences();
@@ -115,6 +130,32 @@ export default function SettingsScreen() {
         </View>
     );
 
+    const SettingOption = ({
+        icon,
+        title,
+        isSelected,
+        onSelect,
+        iconColor = Colors.primary,
+    }: {
+        icon: string;
+        title: string;
+        isSelected: boolean;
+        onSelect: () => void;
+        iconColor?: string;
+    }) => (
+        <TouchableOpacity style={styles.settingRow} onPress={onSelect}>
+            <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
+                <Ionicons name={icon as any} size={22} color={iconColor} />
+            </View>
+            <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>{title}</Text>
+            </View>
+            {isSelected && (
+                <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
+            )}
+        </TouchableOpacity>
+    );
+
     return (
         <LinearGradient
             colors={Colors.gradients.night as unknown as [string, string, ...string[]]}
@@ -122,34 +163,62 @@ export default function SettingsScreen() {
         >
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>⚙️ Ayarlar</Text>
+                    <Text style={styles.title}>⚙️ {i18n.t('settings_title')}</Text>
                 </View>
 
                 <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                    {/* Dil Tercihleri */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>🌐 {i18n.t('settings_section_language')}</Text>
+                        <View style={styles.sectionContent}>
+                            <SettingOption
+                                icon="phone-portrait-outline"
+                                title={i18n.t('settings_language_auto')}
+                                isSelected={preferences.language === 'auto'}
+                                onSelect={() => updatePreference('language', 'auto' as any)}
+                                iconColor={Colors.primary}
+                            />
+                            <SettingOption
+                                icon="language"
+                                title={i18n.t('settings_language_en')}
+                                isSelected={preferences.language === 'en'}
+                                onSelect={() => updatePreference('language', 'en' as any)}
+                                iconColor={Colors.secondary}
+                            />
+                            <SettingOption
+                                icon="language"
+                                title={i18n.t('settings_language_tr')}
+                                isSelected={preferences.language === 'tr'}
+                                onSelect={() => updatePreference('language', 'tr' as any)}
+                                iconColor={Colors.error}
+                            />
+                        </View>
+                    </View>
+
                     {/* Diyet Tercihleri */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🥗 Diyet Tercihleri</Text>
+                        <Text style={styles.sectionTitle}>🥗 {i18n.t('settings_section_diet')}</Text>
                         <View style={styles.sectionContent}>
                             <SettingRow
                                 icon="leaf"
-                                title="Vejetaryen"
-                                subtitle="Et içermeyen yemekler"
+                                title={i18n.t('settings_diet_vegetarian')}
+                                subtitle={i18n.t('settings_diet_vegetarian_subtitle')}
                                 value={preferences.isVegetarian}
                                 onValueChange={(v) => updatePreference('isVegetarian', v)}
                                 iconColor={Colors.success}
                             />
                             <SettingRow
                                 icon="nutrition"
-                                title="Vegan"
-                                subtitle="Hayvansal ürün içermeyen"
+                                title={i18n.t('settings_diet_vegan')}
+                                subtitle={i18n.t('settings_diet_vegan_subtitle')}
                                 value={preferences.isVegan}
                                 onValueChange={(v) => updatePreference('isVegan', v)}
                                 iconColor={Colors.success}
                             />
                             <SettingRow
                                 icon="warning"
-                                title="Gluten-Free"
-                                subtitle="Glutensiz yemekler"
+                                title={i18n.t('settings_diet_gluten_free')}
+                                subtitle={i18n.t('settings_diet_gluten_free_subtitle')}
                                 value={preferences.isGlutenFree}
                                 onValueChange={(v) => updatePreference('isGlutenFree', v)}
                                 iconColor={Colors.warning}
@@ -159,12 +228,12 @@ export default function SettingsScreen() {
 
                     {/* Bildirimler */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🔔 Bildirimler</Text>
+                        <Text style={styles.sectionTitle}>🔔 {i18n.t('settings_section_notifications')}</Text>
                         <View style={styles.sectionContent}>
                             <SettingRow
                                 icon="notifications"
-                                title="Günlük Öneri"
-                                subtitle="Her gün öğle yemeği önerisi"
+                                title={i18n.t('settings_notification_daily')}
+                                subtitle={i18n.t('settings_notification_daily_subtitle')}
                                 value={preferences.notificationsEnabled}
                                 onValueChange={(v) => updatePreference('notificationsEnabled', v)}
                                 iconColor={Colors.secondary}
@@ -172,97 +241,26 @@ export default function SettingsScreen() {
                             {preferences.notificationsEnabled && (
                                 <TouchableOpacity style={styles.testButton} onPress={handleTestNotification}>
                                     <Ionicons name="paper-plane" size={18} color={Colors.primary} />
-                                    <Text style={styles.testButtonText}>Test Bildirimi Gönder</Text>
+                                    <Text style={styles.testButtonText}>{i18n.t('settings_notification_test_button')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
                     </View>
 
-                    {/* AI API Key */}
+                    {/* AI Kullanım Bilgisi */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🤖 AI Asistan</Text>
+                        <Text style={styles.sectionTitle}>🤖 {i18n.t('settings_section_ai')}</Text>
                         <View style={styles.sectionContent}>
                             <View style={styles.apiKeyRow}>
                                 <View style={[styles.iconContainer, { backgroundColor: Colors.secondary + '20' }]}>
-                                    <Ionicons name="key" size={22} color={Colors.secondary} />
+                                    <Ionicons name="sparkles" size={22} color={Colors.secondary} />
                                 </View>
                                 <View style={styles.settingTextContainer}>
-                                    <Text style={styles.settingTitle}>Gemini API Key</Text>
-                                    <Text style={styles.settingSubtitle}>AI önerileri için gerekli</Text>
+                                    <Text style={styles.settingTitle}>{i18n.t('settings_ai_gemini')}</Text>
+                                    <Text style={styles.settingSubtitle}>{i18n.t('settings_ai_desc')}</Text>
                                 </View>
+                                <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
                             </View>
-                            <TouchableOpacity
-                                style={styles.apiKeyButton}
-                                onPress={async () => {
-                                    const { aiService } = await import('../../services');
-                                    const currentKey = await aiService.getApiKey();
-                                    Alert.prompt(
-                                        'Gemini API Key',
-                                        'Google AI Studio\'dan alacağınız API key\'i girin:\nhttps://aistudio.google.com/app/apikey',
-                                        [
-                                            { text: 'İptal', style: 'cancel' },
-                                            {
-                                                text: 'Kaydet',
-                                                onPress: async (key: string | undefined) => {
-                                                    if (key && key.trim()) {
-                                                        await aiService.setApiKey(key.trim());
-                                                        Alert.alert('Başarılı', 'API key kaydedildi! AI sekmesini kullanabilirsiniz.');
-                                                    }
-                                                },
-                                            },
-                                        ],
-                                        'plain-text',
-                                        currentKey
-                                    );
-                                }}
-                            >
-                                <Ionicons name="create-outline" size={18} color={Colors.secondary} />
-                                <Text style={styles.apiKeyButtonText}>API Key Ekle/Değiştir</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Places API Key */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>📍 Yakındaki Restoranlar</Text>
-                        <View style={styles.sectionContent}>
-                            <View style={styles.apiKeyRow}>
-                                <View style={[styles.iconContainer, { backgroundColor: Colors.primary + '20' }]}>
-                                    <Ionicons name="map" size={22} color={Colors.primary} />
-                                </View>
-                                <View style={styles.settingTextContainer}>
-                                    <Text style={styles.settingTitle}>Google Places API Key</Text>
-                                    <Text style={styles.settingSubtitle}>Restoran önerileri için</Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.apiKeyButton}
-                                onPress={async () => {
-                                    const { placesService } = await import('../../services');
-                                    const currentKey = await placesService.getApiKey();
-                                    Alert.prompt(
-                                        'Places API Key',
-                                        'Google Cloud Console\'dan alacağınız API key\'i girin:\nhttps://console.cloud.google.com/apis',
-                                        [
-                                            { text: 'İptal', style: 'cancel' },
-                                            {
-                                                text: 'Kaydet',
-                                                onPress: async (key: string | undefined) => {
-                                                    if (key && key.trim()) {
-                                                        await placesService.setApiKey(key.trim());
-                                                        Alert.alert('Başarılı', 'Places API key kaydedildi!');
-                                                    }
-                                                },
-                                            },
-                                        ],
-                                        'plain-text',
-                                        currentKey
-                                    );
-                                }}
-                            >
-                                <Ionicons name="create-outline" size={18} color={Colors.primary} />
-                                <Text style={[styles.apiKeyButtonText, { color: Colors.primary }]}>API Key Ekle/Değiştir</Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -270,13 +268,13 @@ export default function SettingsScreen() {
                     <View style={styles.section}>
                         <TouchableOpacity style={styles.resetButton} onPress={handleResetPreferences}>
                             <Ionicons name="refresh" size={20} color={Colors.error} />
-                            <Text style={styles.resetButtonText}>Ayarları Sıfırla</Text>
+                            <Text style={styles.resetButtonText}>{i18n.t('settings_reset_button')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Yemek Öneri v1.2.0</Text>
-                        <Text style={styles.footerText}>Powered by Gemini AI & Google Places</Text>
+                        <Text style={styles.footerText}>{i18n.t('app_name')} v1.3.0</Text>
+                        <Text style={styles.footerText}>{i18n.t('settings_footer_powered')}</Text>
                     </View>
                 </ScrollView>
             </SafeAreaView>

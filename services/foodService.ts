@@ -11,58 +11,49 @@ export interface FoodSuggestion {
 
 const MOOD_MESSAGES: Record<string, string[]> = {
     happy: [
-        'Mutluluğunuzu kutlayacak lezzetler! 🎉',
-        'Keyfinize keyif katacak öneriler! 🌟',
-        'Harika hissettiğinizde harika yemekler! ✨',
+        'suggestion_msg_happy_0',
+        'suggestion_msg_happy_1',
+        'suggestion_msg_happy_2',
     ],
     sad: [
-        'Sizi sarmalayacak comfort food\'lar 🤗',
-        'Moralinizi yükseltecek lezzetler 💝',
-        'İçinizi ısıtacak öneriler 🌈',
+        'suggestion_msg_sad_0',
+        'suggestion_msg_sad_1',
+        'suggestion_msg_sad_2',
     ],
     energetic: [
-        'Enerjinizi koruyacak sağlıklı seçenekler! 💪',
-        'Dinamik ruh halinize uygun lezzetler! ⚡',
-        'Performansınızı destekleyecek yemekler! 🏃',
+        'suggestion_msg_energetic_0',
+        'suggestion_msg_energetic_1',
+        'suggestion_msg_energetic_2',
     ],
     tired: [
-        'Sizi canlandıracak öneriler ☕',
-        'Enerji deponuzu dolduracak yemekler 🔋',
-        'Yorgunluğunuzu atacak lezzetler 🌟',
+        'suggestion_msg_tired_0',
+        'suggestion_msg_tired_1',
+        'suggestion_msg_tired_2',
     ],
     stressed: [
-        'Rahatlamanıza yardımcı olacak seçenekler 🧘',
-        'Stresi azaltacak lezzetler 🌿',
-        'Zihninizi dinlendirecek öneriler 🍃',
+        'suggestion_msg_stressed_0',
+        'suggestion_msg_stressed_1',
+        'suggestion_msg_stressed_2',
     ],
     relaxed: [
-        'Keyfinize keyif katacak gurme seçenekler 🍷',
-        'Huzurlu anlarınız için özel öneriler 🌺',
-        'Rahatlamaya devam edecek lezzetler ☀️',
+        'suggestion_msg_relaxed_0',
+        'suggestion_msg_relaxed_1',
+        'suggestion_msg_relaxed_2',
     ],
 };
 
 const REGIONAL_MESSAGES: Record<string, string> = {
-    marmara: 'Marmara\'nın eşsiz lezzetleri sizin için! 🌊',
-    ege: 'Ege\'nin sağlıklı Akdeniz mutfağı 🫒',
-    akdeniz: 'Akdeniz\'in baharatlı lezzetleri 🌶️',
-    icanadolu: 'İç Anadolu\'nun geleneksel tatları 🏔️',
-    karadeniz: 'Karadeniz\'in zengin mutfağı 🐟',
-    doguanadolu: 'Doğu\'nun otantik lezzetleri 🏔️',
-    guneydogu: 'Güneydoğu\'nun efsane mutfağı 🍖',
+    marmara: 'suggestion_msg_marmara',
+    ege: 'suggestion_msg_ege',
+    akdeniz: 'suggestion_msg_akdeniz',
+    icanadolu: 'suggestion_msg_icanadolu',
+    karadeniz: 'suggestion_msg_karadeniz',
+    doguanadolu: 'suggestion_msg_doguanadolu',
+    guneydogu: 'suggestion_msg_guneydogu',
 };
 
 const getRegionName = (regionCode: string): string => {
-    const names: Record<string, string> = {
-        marmara: 'Marmara',
-        ege: 'Ege',
-        akdeniz: 'Akdeniz',
-        icanadolu: 'İç Anadolu',
-        karadeniz: 'Karadeniz',
-        doguanadolu: 'Doğu Anadolu',
-        guneydogu: 'Güneydoğu Anadolu',
-    };
-    return names[regionCode] || regionCode;
+    return `region_${regionCode}`;
 };
 
 class FoodService {

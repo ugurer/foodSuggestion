@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { MOODS, Mood } from '../constants/moods';
 import { MoodCard, AnimatedButton } from '../components';
+import i18n from '../constants/i18n';
 
 export default function MoodScreen() {
     const router = useRouter();
@@ -56,9 +57,9 @@ export default function MoodScreen() {
                         icon={<Ionicons name="arrow-back" size={24} color={Colors.primary} />}
                     />
                     <View style={styles.headerTextContainer}>
-                        <Text style={styles.title}>Nasıl Hissediyorsun?</Text>
+                        <Text style={styles.title}>{i18n.t('home_title')}</Text>
                         <Text style={styles.subtitle}>
-                            Ruh halinizi seçin, size özel yemekler önerelim
+                            {i18n.t('home_subtitle')}
                         </Text>
                         {city && (
                             <View style={styles.cityBadge}>
@@ -100,8 +101,8 @@ export default function MoodScreen() {
                         <View style={styles.selectedInfo}>
                             <Text style={styles.selectedEmoji}>{selectedMood.emoji}</Text>
                             <View>
-                                <Text style={styles.selectedLabel}>Seçilen Ruh Hali</Text>
-                                <Text style={styles.selectedMood}>{selectedMood.label}</Text>
+                                <Text style={styles.selectedLabel}>{i18n.t('mood_selected_label')}</Text>
+                                <Text style={styles.selectedMood}>{i18n.t(`mood_${selectedMood.id}`)}</Text>
                             </View>
                         </View>
                     </Animated.View>
@@ -110,7 +111,7 @@ export default function MoodScreen() {
                 {/* Continue Button */}
                 <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
                     <AnimatedButton
-                        title="Yemek Önerilerini Gör"
+                        title={i18n.t('mood_continue_button')}
                         onPress={handleContinue}
                         size="large"
                         disabled={!selectedMood}

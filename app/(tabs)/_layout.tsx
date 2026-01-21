@@ -1,10 +1,22 @@
+import React, { useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
+import i18n, { addLanguageChangeListener } from '../../constants/i18n';
 
 export default function TabLayout() {
+    const [locale, setLocale] = useState(i18n.locale);
+
+    useEffect(() => {
+        const unsubscribe = addLanguageChangeListener(() => {
+            setLocale(i18n.locale);
+        });
+        return unsubscribe;
+    }, []);
+
     return (
         <Tabs
+            key={locale} // Force remount on language change
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
@@ -26,7 +38,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Ana Sayfa',
+                    title: i18n.t('tab_home'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="home" size={size} color={color} />
                     ),
@@ -35,7 +47,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="search"
                 options={{
-                    title: 'Ara',
+                    title: i18n.t('tab_search'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="search" size={size} color={color} />
                     ),
@@ -44,7 +56,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="favorites"
                 options={{
-                    title: 'Favoriler',
+                    title: i18n.t('tab_favorites'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="heart" size={size} color={color} />
                     ),
@@ -53,7 +65,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="history"
                 options={{
-                    title: 'Geçmiş',
+                    title: i18n.t('tab_history'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="time" size={size} color={color} />
                     ),
@@ -62,7 +74,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="ai"
                 options={{
-                    title: 'AI',
+                    title: i18n.t('tab_ai'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="sparkles" size={size} color={color} />
                     ),
@@ -71,7 +83,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: 'Ayarlar',
+                    title: i18n.t('tab_settings'),
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="settings" size={size} color={color} />
                     ),

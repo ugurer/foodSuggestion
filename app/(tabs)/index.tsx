@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { AnimatedButton, LocationDisplay } from '../../components';
 import { useLocation } from '../../hooks';
+import i18n from '../../constants/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -81,9 +82,9 @@ export default function HomeScreen() {
                                 <Text style={styles.logoEmoji}>🍽️</Text>
                             </LinearGradient>
                         </Animated.View>
-                        <Text style={styles.title}>Yemek Öneri</Text>
+                        <Text style={styles.title}>{i18n.t('app_name')}</Text>
                         <Text style={styles.subtitle}>
-                            Ruh halinize ve konumunuza göre{'\n'}size özel yemek önerileri
+                            {i18n.t('home_subtitle')}
                         </Text>
                     </Animated.View>
 
@@ -95,7 +96,7 @@ export default function HomeScreen() {
                         >
                             <View style={styles.locationHeader}>
                                 <Ionicons name="location" size={18} color={Colors.primary} />
-                                <Text style={styles.sectionTitle}>Konumunuz</Text>
+                                <Text style={styles.sectionTitle}>{i18n.t('home_location_title')}</Text>
                             </View>
                             <LocationDisplay
                                 location={location}
@@ -105,13 +106,13 @@ export default function HomeScreen() {
                             {location?.city && (
                                 <View style={styles.regionHintContainer}>
                                     <Text style={styles.regionHint}>
-                                        ✨ Bölgenize özel yemekler önereceğiz!
+                                        {i18n.t('home_region_hint')}
                                     </Text>
                                 </View>
                             )}
                             {error && (
                                 <AnimatedButton
-                                    title="Tekrar Dene"
+                                    title={i18n.t('suggestion_retry')}
                                     onPress={refresh}
                                     variant="ghost"
                                     size="small"
@@ -124,9 +125,9 @@ export default function HomeScreen() {
                     {/* Features */}
                     <Animated.View style={[styles.features, { opacity: fadeAnim3 }]}>
                         {[
-                            { emoji: '😊', text: 'Ruh Hali', color: Colors.moods.happy },
-                            { emoji: '🗺️', text: 'Bölgesel', color: Colors.secondary },
-                            { emoji: '🤖', text: 'AI Öneri', color: Colors.info },
+                            { emoji: '😊', text: i18n.t('feature_mood'), color: Colors.moods.happy },
+                            { emoji: '🗺️', text: i18n.t('feature_regional'), color: Colors.secondary },
+                            { emoji: '🤖', text: i18n.t('feature_ai'), color: Colors.info },
                         ].map((feature, idx) => (
                             <View key={idx} style={styles.featureItem}>
                                 <LinearGradient
@@ -143,7 +144,7 @@ export default function HomeScreen() {
                     {/* Start Button */}
                     <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim4 }]}>
                         <AnimatedButton
-                            title="Hadi Başlayalım"
+                            title={i18n.t('home_start_button')}
                             onPress={handleStart}
                             size="large"
                             fullWidth

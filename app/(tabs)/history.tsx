@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { storageService, HistoryItem } from '../../services';
 import { getMoodById } from '../../constants/moods';
+import i18n from '../../constants/i18n';
 
 export default function HistoryScreen() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -38,11 +39,11 @@ export default function HistoryScreen() {
         const now = new Date();
         const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 0) return 'Bugün';
-        if (diffDays === 1) return 'Dün';
-        if (diffDays < 7) return `${diffDays} gün önce`;
+        if (diffDays === 0) return i18n.t('history_date_today');
+        if (diffDays === 1) return i18n.t('history_date_yesterday');
+        if (diffDays < 7) return i18n.t('history_date_days_ago', { days: diffDays });
 
-        return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        return date.toLocaleDateString(i18n.locale, { day: 'numeric', month: 'short' });
     };
 
     const renderItem = ({ item }: { item: HistoryItem }) => {
@@ -54,9 +55,9 @@ export default function HistoryScreen() {
                     <Text style={styles.foodEmoji}>{item.food.emoji}</Text>
                 </View>
                 <View style={styles.itemCenter}>
-                    <Text style={styles.foodName}>{item.food.name}</Text>
+                    <Text style={styles.foodName}>{i18n.t(`food_${item.food.id}_name`, { defaultValue: item.food.name })}</Text>
                     <View style={styles.itemMeta}>
-                        {mood && <Text style={styles.moodBadge}>{mood.emoji} {mood.label}</Text>}
+                        {mood && <Text style={styles.moodBadge}>{mood.emoji} {i18n.t(`mood_${mood.id}`)}</Text>}
                         {item.city && <Text style={styles.cityBadge}>📍 {item.city}</Text>}
                     </View>
                 </View>
@@ -68,9 +69,9 @@ export default function HistoryScreen() {
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
             <Ionicons name="time-outline" size={64} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>Geçmiş boş</Text>
+            <Text style={styles.emptyTitle}>{i18n.t('history_empty_title')}</Text>
             <Text style={styles.emptyText}>
-                Yemek önerileri aldıkça{'\n'}burada görünecek
+                {i18n.t('history_empty_desc')}
             </Text>
         </View>
     );
@@ -83,8 +84,8 @@ export default function HistoryScreen() {
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.title}>📜 Geçmiş</Text>
-                        <Text style={styles.subtitle}>{history.length} öneri</Text>
+                        <Text style={styles.title}>📜 {i18n.t('history_title')}</Text>
+                        <Text style={styles.subtitle}>{i18n.t('history_subtitle_count', { count: history.length })}</Text>
                     </View>
                     {history.length > 0 && (
                         <TouchableOpacity onPress={handleClearHistory} style={styles.clearButton}>

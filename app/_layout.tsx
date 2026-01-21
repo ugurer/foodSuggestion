@@ -5,7 +5,9 @@ import { Colors } from '../constants/colors';
 import { OfflineBanner, ErrorBoundary } from '../components';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { storageService } from '../services';
+import { setLanguage } from '../constants/i18n';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,9 +24,23 @@ export default function RootLayout() {
     }, [error]);
 
     useEffect(() => {
-        if (loaded) {
-            SplashScreen.hideAsync();
-        }
+        const prepare = async () => {
+            try {
+                // Load language preference
+                const prefs = await storageService.getPreferences();
+                if (prefs.language) {
+                    setLanguage(prefs.language);
+                }
+            } catch (e) {
+                console.warn('Error loading preferences:', e);
+            } finally {
+                if (loaded) {
+                    SplashScreen.hideAsync();
+                }
+            }
+        };
+
+        prepare();
     }, [loaded]);
 
     if (!loaded && !error) {

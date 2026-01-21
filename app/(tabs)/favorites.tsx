@@ -7,6 +7,7 @@ import { Colors } from '../../constants/colors';
 import { Food } from '../../constants/foods';
 import { storageService } from '../../services';
 import { FoodCard } from '../../components';
+import i18n from '../../constants/i18n';
 
 export default function FavoritesScreen() {
     const [favorites, setFavorites] = useState<Food[]>([]);
@@ -45,9 +46,9 @@ export default function FavoritesScreen() {
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
             <Ionicons name="heart-outline" size={64} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>Henüz favori yok</Text>
+            <Text style={styles.emptyTitle}>{i18n.t('favorites_empty_title')}</Text>
             <Text style={styles.emptyText}>
-                Beğendiğiniz yemekleri kalp ikonuna{'\n'}dokunarak favorilere ekleyin
+                {i18n.t('favorites_empty_desc')}
             </Text>
         </View>
     );
@@ -59,8 +60,8 @@ export default function FavoritesScreen() {
         >
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>❤️ Favorilerim</Text>
-                    <Text style={styles.subtitle}>{favorites.length} yemek</Text>
+                    <Text style={styles.title}>❤️ {i18n.t('favorites_title')}</Text>
+                    <Text style={styles.subtitle}>{i18n.t('favorites_subtitle_count', { count: favorites.length })}</Text>
                 </View>
 
                 <FlatList

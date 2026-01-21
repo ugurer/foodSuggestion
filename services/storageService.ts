@@ -14,6 +14,7 @@ export interface UserPreferences {
     isGlutenFree: boolean;
     notificationsEnabled: boolean;
     notificationTime: string; // "HH:mm" format
+    language: 'auto' | 'en' | 'tr'; // New field
 }
 
 export interface HistoryItem {
@@ -30,6 +31,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     isGlutenFree: false,
     notificationsEnabled: false,
     notificationTime: '12:00',
+    language: 'auto',
 };
 
 class StorageService {

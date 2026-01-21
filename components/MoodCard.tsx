@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../constants/colors';
 import { Mood } from '../constants/moods';
+import i18n from '../constants/i18n';
 
 interface MoodCardProps {
     mood: Mood;
@@ -74,9 +75,9 @@ export const MoodCard: React.FC<MoodCardProps> = ({ mood, selected, onSelect, in
                     <View style={[styles.emojiContainer, { backgroundColor: moodColor + '25' }]}>
                         <Text style={styles.emoji}>{mood.emoji}</Text>
                     </View>
-                    <Text style={styles.label}>{mood.label}</Text>
+                    <Text style={styles.label}>{i18n.t(`mood_${mood.id}`)}</Text>
                     <Text style={styles.description} numberOfLines={2}>
-                        {mood.description}
+                        {i18n.t(`mood_${mood.id}_desc`)}
                     </Text>
                     {selected && (
                         <View style={[styles.selectedIndicator, { backgroundColor: moodColor }]}>

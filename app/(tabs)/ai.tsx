@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
 import { aiService, storageService } from '../../services';
+import i18n from '../../constants/i18n';
 import { useLocation } from '../../hooks';
 import { MOODS } from '../../constants/moods';
 import { FoodCard } from '../../components';
@@ -53,13 +54,13 @@ export default function AIScreen() {
                 setMessages([{
                     id: '1',
                     type: 'ai',
-                    text: '🍽️ Merhaba! Ben yemek asistanınızım. Ruh halinizi seçin veya ne yemek istediğinizi yazın, size özel öneriler sunayım!',
+                    text: i18n.t('ai_screen_greeting'),
                 }]);
             } else {
                 setMessages([{
                     id: '1',
                     type: 'ai',
-                    text: '⚠️ AI önerileri için Gemini API key gerekiyor. Ayarlar sayfasından API key ekleyebilirsiniz.\n\n👉 Google AI Studio: https://aistudio.google.com/app/apikey',
+                    text: i18n.t('ai_screen_error_apikey'),
                 }]);
             }
         };
@@ -76,10 +77,13 @@ export default function AIScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // Kullanıcı mesajı ekle
+        // Localized mood label for user message
+        const localizedLabel = i18n.t(`mood_${mood.id}`, { defaultValue: mood.label });
+
         const userMessage: Message = {
             id: Date.now().toString(),
             type: 'user',
-            text: `${mood.emoji} ${mood.label} hissediyorum`,
+            text: i18n.t('ai_screen_user_mood', { emoji: mood.emoji, label: localizedLabel }),
         };
         setMessages(prev => [...prev, userMessage]);
 
@@ -115,14 +119,14 @@ export default function AIScreen() {
             } else {
                 setMessages(prev => prev.map(m =>
                     m.id === loadingId
-                        ? { ...m, isLoading: false, text: 'Öneri oluşturulamadı. Lütfen tekrar deneyin.' }
+                        ? { ...m, isLoading: false, text: i18n.t('ai_screen_error_recommendation') }
                         : m
                 ));
             }
         } catch (error) {
             setMessages(prev => prev.map(m =>
                 m.id === loadingId
-                    ? { ...m, isLoading: false, text: 'Bir hata oluştu. Lütfen tekrar deneyin.' }
+                    ? { ...m, isLoading: false, text: i18n.t('ai_screen_error_generic') }
                     : m
             ));
         }
@@ -158,7 +162,7 @@ export default function AIScreen() {
         } catch (error) {
             setMessages(prev => prev.map(m =>
                 m.id === loadingId
-                    ? { ...m, isLoading: false, text: 'Yanıt alınamadı.' }
+                    ? { ...m, isLoading: false, text: i18n.t('ai_screen_error_no_response') }
                     : m
             ));
         }
@@ -174,8 +178,8 @@ export default function AIScreen() {
         >
             <SafeAreaView style={styles.safeArea}>
                 <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-                    <Text style={styles.title}>🤖 AI Asistan</Text>
-                    <Text style={styles.subtitle}>Kişiselleştirilmiş yemek önerileri</Text>
+                    <Text style={styles.title}>{i18n.t('ai_screen_title')}</Text>
+                    <Text style={styles.subtitle}>{i18n.t('ai_screen_subtitle')}</Text>
                 </Animated.View>
 
                 <KeyboardAvoidingView
@@ -186,7 +190,7 @@ export default function AIScreen() {
                     {/* Mood Selection */}
                     {messages.length <= 1 && (
                         <Animated.View style={[styles.moodSection, { opacity: fadeAnim }]}>
-                            <Text style={styles.moodTitle}>Nasıl hissediyorsunuz?</Text>
+                            <Text style={styles.moodTitle}>{i18n.t('ai_screen_mood_title')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 <View style={styles.moodList}>
                                     {MOODS.map((mood) => (
@@ -200,7 +204,7 @@ export default function AIScreen() {
                                             disabled={isLoading}
                                         >
                                             <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                                            <Text style={styles.moodLabel}>{mood.label}</Text>
+                                            <Text style={styles.moodLabel}>{i18n.t(`mood_${mood.id}`)}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -242,7 +246,7 @@ export default function AIScreen() {
                                         )}
                                         {message.tips && message.tips.length > 0 && (
                                             <View style={styles.tipsContainer}>
-                                                <Text style={styles.tipsTitle}>💡 İpuçları:</Text>
+                                                <Text style={styles.tipsTitle}>{i18n.t('suggestion_tips')}</Text>
                                                 {message.tips.map((tip, idx) => (
                                                     <Text key={idx} style={styles.tipText}>• {tip}</Text>
                                                 ))}
@@ -258,7 +262,7 @@ export default function AIScreen() {
                     <View style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
-                            placeholder="Yemek hakkında soru sorun..."
+                            placeholder={i18n.t('ai_screen_placeholder')}
                             placeholderTextColor={Colors.textMuted}
                             value={inputText}
                             onChangeText={setInputText}

@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 import { Colors } from '../../constants/colors';
 import { placesService, NearbyRestaurant } from '../../services';
 import { RestaurantCard, AnimatedButton } from '../../components';
+import i18n from '../../constants/i18n';
 
 export default function SearchScreen() {
     const [query, setQuery] = useState('');
@@ -24,7 +25,7 @@ export default function SearchScreen() {
         try {
             const hasPermission = await requestLocationPermission();
             if (!hasPermission) {
-                setError('Konum izni gerekli.');
+                setError(i18n.t('search_error_location'));
                 setIsSearching(false);
                 return;
             }
@@ -40,13 +41,13 @@ export default function SearchScreen() {
             );
 
             if (restaurants.length === 0) {
-                setError('Yakınınızda bu isimde bir restoran bulunamadı.');
+                setError(i18n.t('search_error_not_found'));
             } else {
                 setResults(restaurants);
             }
         } catch (err) {
             console.error(err);
-            setError('Arama sırasında bir hata oluştu.');
+            setError(i18n.t('search_error_generic'));
         } finally {
             setIsSearching(false);
         }
@@ -62,7 +63,7 @@ export default function SearchScreen() {
             return (
                 <View style={styles.centerContainer}>
                     <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={styles.loadingText}>Restoranlar ve yorumlar aranıyor...</Text>
+                    <Text style={styles.loadingText}>{i18n.t('search_loading_text')}</Text>
                 </View>
             );
         }
@@ -80,9 +81,9 @@ export default function SearchScreen() {
             return (
                 <View style={styles.centerContainer}>
                     <Ionicons name="search-outline" size={64} color={Colors.textMuted} />
-                    <Text style={styles.emptyTitle}>Restoran Arayın</Text>
+                    <Text style={styles.emptyTitle}>{i18n.t('search_empty_title')}</Text>
                     <Text style={styles.emptyText}>
-                        Yemek veya restoran adı yazarak{'\n'}yakınınızdaki en iyi yerleri keşfedin.
+                        {i18n.t('search_empty_desc')}
                     </Text>
                 </View>
             );
@@ -98,8 +99,8 @@ export default function SearchScreen() {
         >
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>🔎 Keşfet</Text>
-                    <Text style={styles.subtitle}>Yakınınızdaki lezzet durakları</Text>
+                    <Text style={styles.title}>{i18n.t('search_header_title')}</Text>
+                    <Text style={styles.subtitle}>{i18n.t('search_header_subtitle')}</Text>
                 </View>
 
                 <View style={styles.searchContainer}>
@@ -107,7 +108,7 @@ export default function SearchScreen() {
                         <Ionicons name="search" size={20} color={Colors.textMuted} style={styles.searchIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Ne yemek istersiniz? (örn. Kebap, Burger)"
+                            placeholder={i18n.t('search_input_placeholder')}
                             placeholderTextColor={Colors.textMuted}
                             value={query}
                             onChangeText={setQuery}
@@ -125,7 +126,7 @@ export default function SearchScreen() {
                         )}
                     </View>
                     <AnimatedButton
-                        title="Ara"
+                        title={i18n.t('search_button')}
                         onPress={handleSearch}
                         size="medium"
                         disabled={isSearching || !query.trim()}

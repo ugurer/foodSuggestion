@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const PLACES_API_KEY_STORAGE = '@suggest_food_places_api_key';
+import { API_CONFIG } from '../constants/apiConfig';
+import { rateLimitService } from './rateLimitService';
 
 export interface Review {
     name: string;
@@ -25,44 +24,12 @@ export interface NearbyRestaurant {
 }
 
 class PlacesService {
-    private apiKey: string = '';
+    isConfigured(): boolean {
+        return true; // Always configured when using backend proxy
+    }
 
     async initialize(): Promise<boolean> {
-        try {
-            const key = await AsyncStorage.getItem(PLACES_API_KEY_STORAGE);
-            if (key && key.length > 0) {
-                this.apiKey = key;
-                return true;
-            }
-            return false;
-        } catch (error) {
-            console.error('Places init error:', error);
-            return false;
-        }
-    }
-
-    async setApiKey(key: string): Promise<boolean> {
-        try {
-            await AsyncStorage.setItem(PLACES_API_KEY_STORAGE, key);
-            this.apiKey = key;
-            return true;
-        } catch (error) {
-            console.error('Set Places API key error:', error);
-            return false;
-        }
-    }
-
-    async getApiKey(): Promise<string> {
-        try {
-            const key = await AsyncStorage.getItem(PLACES_API_KEY_STORAGE);
-            return key || '';
-        } catch {
-            return '';
-        }
-    }
-
-    isConfigured(): boolean {
-        return this.apiKey.length > 0;
+        return true;
     }
 
     async searchNearbyRestaurants(
@@ -71,34 +38,29 @@ class PlacesService {
         longitude: number,
         radius: number = 2000
     ): Promise<NearbyRestaurant[]> {
-        if (!this.apiKey) {
-            await this.initialize();
-            if (!this.apiKey) return [];
+        // Check rate limit
+        const rateCheck = await rateLimitService.checkPlacesLimit(API_CONFIG.limits.placesSearches);
+        if (!rateCheck.allowed) {
+            console.log('Places rate limit exceeded');
+            return [];
         }
 
         try {
-            // Places API (New) - Text Search
-            const url = 'https://places.googleapis.com/v1/places:searchText';
-
-            const response = await fetch(url, {
+            const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.placesSearch}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': this.apiKey,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location,places.reviews',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    textQuery: `${foodName} restaurant`,
-                    locationBias: {
-                        circle: {
-                            center: { latitude, longitude },
-                            radius: radius,
-                        },
-                    },
-                    languageCode: 'tr',
-                    maxResultCount: 5,
+                    query: `${foodName} restaurant`,
+                    latitude,
+                    longitude,
+                    radius,
                 }),
             });
+
+            if (!response.ok) {
+                console.error('Backend error:', response.status);
+                return [];
+            }
 
             const data = await response.json();
 
@@ -107,31 +69,7 @@ class PlacesService {
                 return [];
             }
 
-            const restaurants: NearbyRestaurant[] = (data.places || []).map((place: any) => ({
-                id: place.id,
-                name: place.displayName?.text || '',
-                address: place.formattedAddress || '',
-                rating: place.rating,
-                userRatingsTotal: place.userRatingCount,
-                priceLevel: this.mapPriceLevel(place.priceLevel),
-                isOpen: place.currentOpeningHours?.openNow,
-                photoUrl: place.photos?.[0]?.name
-                    ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=400&key=${this.apiKey}`
-                    : undefined,
-                types: place.types || [],
-                distance: place.location
-                    ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
-                    : '',
-                reviews: (place.reviews || []).slice(0, 2).map((r: any) => ({
-                    name: r.authorAttribution?.displayName || 'Anonim',
-                    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
-                    rating: r.rating,
-                    text: r.text?.text || '',
-                    authorPhotoUri: r.authorAttribution?.photoUri,
-                })),
-            }));
-
-            return restaurants;
+            return this.transformPlaces(data.places || [], latitude, longitude);
         } catch (error) {
             console.error('Search restaurants error:', error);
             return [];
@@ -143,34 +81,24 @@ class PlacesService {
         longitude: number,
         radius: number = 1500
     ): Promise<NearbyRestaurant[]> {
-        if (!this.apiKey) {
-            await this.initialize();
-            if (!this.apiKey) return [];
+        // Check rate limit
+        const rateCheck = await rateLimitService.checkPlacesLimit(API_CONFIG.limits.placesSearches);
+        if (!rateCheck.allowed) {
+            console.log('Places rate limit exceeded');
+            return [];
         }
 
         try {
-            // Places API (New) - Nearby Search
-            const url = 'https://places.googleapis.com/v1/places:searchNearby';
-
-            const response = await fetch(url, {
+            const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.placesNearby}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': this.apiKey,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours,places.photos,places.types,places.location,places.reviews',
-                },
-                body: JSON.stringify({
-                    includedTypes: ['restaurant'],
-                    locationRestriction: {
-                        circle: {
-                            center: { latitude, longitude },
-                            radius: radius,
-                        },
-                    },
-                    languageCode: 'tr',
-                    maxResultCount: 8,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude, longitude, radius }),
             });
+
+            if (!response.ok) {
+                console.error('Backend error:', response.status);
+                return [];
+            }
 
             const data = await response.json();
 
@@ -179,35 +107,35 @@ class PlacesService {
                 return [];
             }
 
-            const restaurants: NearbyRestaurant[] = (data.places || []).map((place: any) => ({
-                id: place.id,
-                name: place.displayName?.text || '',
-                address: place.formattedAddress || '',
-                rating: place.rating,
-                userRatingsTotal: place.userRatingCount,
-                priceLevel: this.mapPriceLevel(place.priceLevel),
-                isOpen: place.currentOpeningHours?.openNow,
-                photoUrl: place.photos?.[0]?.name
-                    ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=400&key=${this.apiKey}`
-                    : undefined,
-                types: place.types || [],
-                distance: place.location
-                    ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
-                    : '',
-                reviews: (place.reviews || []).slice(0, 2).map((r: any) => ({
-                    name: r.authorAttribution?.displayName || 'Anonim',
-                    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
-                    rating: r.rating,
-                    text: r.text?.text || '',
-                    authorPhotoUri: r.authorAttribution?.photoUri,
-                })),
-            }));
-
-            return restaurants;
+            return this.transformPlaces(data.places || [], latitude, longitude);
         } catch (error) {
             console.error('Search nearby error:', error);
             return [];
         }
+    }
+
+    private transformPlaces(places: any[], userLat: number, userLon: number): NearbyRestaurant[] {
+        return places.map((place: any) => ({
+            id: place.id,
+            name: place.displayName?.text || '',
+            address: place.formattedAddress || '',
+            rating: place.rating,
+            userRatingsTotal: place.userRatingCount,
+            priceLevel: this.mapPriceLevel(place.priceLevel),
+            isOpen: place.currentOpeningHours?.openNow,
+            photoUrl: place.photoUrl || undefined,
+            types: place.types || [],
+            distance: place.location
+                ? this.calculateDistance(userLat, userLon, place.location.latitude, place.location.longitude)
+                : '',
+            reviews: (place.reviews || []).slice(0, 2).map((r: any) => ({
+                name: r.authorAttribution?.displayName || 'Anonim',
+                relativePublishTimeDescription: r.relativePublishTimeDescription || '',
+                rating: r.rating,
+                text: r.text?.text || '',
+                authorPhotoUri: r.authorAttribution?.photoUri,
+            })),
+        }));
     }
 
     private mapPriceLevel(level?: string): string {

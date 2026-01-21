@@ -6,12 +6,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Colors } from '../constants/colors';
 import { getMoodById, Mood } from '../constants/moods';
-import { foodService, FoodSuggestion, storageService, aiService, placesService, NearbyRestaurant } from '../services';
+import { foodService, FoodSuggestion, storageService, aiService, placesService, NearbyRestaurant, AIRecommendation, rateLimitService } from '../services';
 import { FoodCard, AnimatedButton, RestaurantCard } from '../components';
+import { Food } from '../constants/foods';
+import { API_CONFIG } from '../constants/apiConfig';
+import i18n from '../constants/i18n';
 
 interface AITips {
     message: string;
     tips: string[];
+    aiFoods: Food[]; // AI'ın önerdiği yemekler
 }
 
 export default function SuggestionScreen() {
@@ -27,6 +31,10 @@ export default function SuggestionScreen() {
     const [previousFoodIds, setPreviousFoodIds] = useState<string[]>([]);
     const [key, setKey] = useState(0);
     const [showRestaurants, setShowRestaurants] = useState(false);
+    const [showAIFoods, setShowAIFoods] = useState(true);
+    const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+    const [aiRemaining, setAiRemaining] = useState<number>(10);
+    const [noRestaurantsFound, setNoRestaurantsFound] = useState(false);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -52,12 +60,17 @@ export default function SuggestionScreen() {
                 }
             );
 
-            if (recommendation && recommendation.tips.length > 0) {
+            if (recommendation) {
                 setAiTips({
                     message: recommendation.explanation,
                     tips: recommendation.tips,
+                    aiFoods: recommendation.suggestedFoods || [],
                 });
             }
+
+            // Update remaining AI requests
+            const remaining = await rateLimitService.getRemainingAI(API_CONFIG.limits.aiRecommendations);
+            setAiRemaining(remaining);
         } catch (error) {
             console.log('AI enhancement skipped:', error);
         } finally {
@@ -66,30 +79,46 @@ export default function SuggestionScreen() {
     };
 
     const loadNearbyRestaurants = async (foodName: string) => {
+        console.log('🔍 loadNearbyRestaurants called with:', foodName);
         try {
             await placesService.initialize();
-            if (!placesService.isConfigured()) return;
+            if (!placesService.isConfigured()) {
+                console.log('❌ placesService not configured');
+                return;
+            }
 
             setIsLoadingPlaces(true);
+            setNoRestaurantsFound(false);
 
             const { status } = await Location.getForegroundPermissionsAsync();
-            if (status !== 'granted') return;
+            console.log('📍 Location permission status:', status);
+            if (status !== 'granted') {
+                console.log('❌ Location not granted');
+                setNoRestaurantsFound(true);
+                setIsLoadingPlaces(false);
+                return;
+            }
 
             const location = await Location.getCurrentPositionAsync({});
             const { latitude, longitude } = location.coords;
+            console.log('📍 Location:', latitude, longitude);
 
             const results = await placesService.searchNearbyRestaurants(
                 foodName,
                 latitude,
                 longitude
             );
+            console.log('🍽️ Results:', results.length);
 
             setRestaurants(results);
             if (results.length > 0) {
                 setShowRestaurants(true);
+            } else {
+                setNoRestaurantsFound(true);
             }
         } catch (error) {
-            console.log('Places search skipped:', error);
+            console.log('❌ Places search error:', error);
+            setNoRestaurantsFound(true);
         } finally {
             setIsLoadingPlaces(false);
         }
@@ -113,10 +142,7 @@ export default function SuggestionScreen() {
                 // AI ile zenginleştir
                 loadAIEnhancement(moodId, initialSuggestion.foods.map(f => f.name), city || undefined);
 
-                // İlk yemeği ara
-                if (initialSuggestion.foods.length > 0) {
-                    loadNearbyRestaurants(initialSuggestion.foods[0].name);
-                }
+                // Artık otomatik restoran aramıyoruz - kullanıcı yemek seçince arayacak
             }
         };
         loadSuggestions();
@@ -141,12 +167,31 @@ export default function SuggestionScreen() {
             // AI ile zenginleştir
             loadAIEnhancement(moodId, newSuggestion.foods.map(f => f.name), city || undefined);
 
-            // İlk yemeği ara
-            if (newSuggestion.foods.length > 0) {
-                loadNearbyRestaurants(newSuggestion.foods[0].name);
-            }
+            // Seçili yemeği sıfırla
+            setSelectedFood(null);
         }
     }, [moodId, previousFoodIds, city]);
+
+    const scrollViewRef = useRef<ScrollView>(null);
+
+    const handleFoodSelect = async (food: Food) => {
+        setSelectedFood(food);
+        setRestaurants([]);
+        setNoRestaurantsFound(false);
+        setShowRestaurants(true);
+
+        // Scroll to show something is happening
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+
+        await loadNearbyRestaurants(food.name);
+
+        // Scroll again after results
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 500);
+    };
 
     const handleBack = () => {
         router.back();
@@ -180,12 +225,12 @@ export default function SuggestionScreen() {
                     <View style={styles.badgeContainer}>
                         <View style={styles.moodBadge}>
                             <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                            <Text style={styles.moodLabel}>{mood.label}</Text>
+                            <Text style={styles.moodLabel}>{i18n.t(`mood_${mood.id}`)}</Text>
                         </View>
                         {suggestion.isRegional && suggestion.regionName && (
                             <View style={styles.regionBadge}>
                                 <Ionicons name="location" size={14} color={Colors.success} />
-                                <Text style={styles.regionLabel}>{suggestion.regionName}</Text>
+                                <Text style={styles.regionLabel}>{i18n.t(suggestion.regionName)}</Text>
                             </View>
                         )}
                     </View>
@@ -193,30 +238,34 @@ export default function SuggestionScreen() {
 
                 {/* Message */}
                 <Animated.View style={[styles.messageContainer, { opacity: fadeAnim }]}>
-                    <Text style={styles.message}>{suggestion.message}</Text>
+                    <Text style={styles.message}>{i18n.t(suggestion.message)}</Text>
                     {city && (
                         <Text style={styles.locationHint}>
-                            📍 {city} bölgesinden öneriler
+                            {i18n.t('suggestion_location_hint', { city })}
                         </Text>
                     )}
                 </Animated.View>
 
                 {/* Food Cards */}
                 <ScrollView
+                    ref={scrollViewRef}
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.foodList} key={key}>
+                        <Text style={styles.tapHint}>{i18n.t('suggestion_tap_hint')}</Text>
                         {suggestion.foods.map((food, index) => (
                             <View key={`${food.id}-${key}-${index}`}>
                                 <FoodCard
                                     food={food}
                                     index={index}
+                                    onPress={handleFoodSelect}
+                                    isSelected={selectedFood?.id === food.id}
                                 />
                                 {food.regions && food.regions.length > 0 && (
                                     <View style={styles.regionalTag}>
-                                        <Text style={styles.regionalTagText}>🏷️ Bölgesel</Text>
+                                        <Text style={styles.regionalTagText}>{i18n.t('suggestion_regional_tag')}</Text>
                                     </View>
                                 )}
                             </View>
@@ -226,40 +275,83 @@ export default function SuggestionScreen() {
                     {/* AI Tips Section */}
                     {isLoadingAI && (
                         <View style={styles.aiSection}>
-                            <ActivityIndicator color={Colors.primary} size="small" />
-                            <Text style={styles.aiLoadingText}>AI önerileri yükleniyor...</Text>
+                            <ActivityIndicator color={Colors.secondary} size="small" />
+                            <Text style={styles.aiLoadingText}>{i18n.t('suggestion_loading_ai')}</Text>
                         </View>
                     )}
 
                     {aiTips && !isLoadingAI && (
                         <View style={styles.aiSection}>
-                            <View style={styles.aiHeader}>
-                                <Ionicons name="sparkles" size={18} color={Colors.secondary} />
-                                <Text style={styles.aiTitle}>AI Asistan</Text>
-                            </View>
-                            {aiTips.message && (
-                                <Text style={styles.aiMessage}>{aiTips.message}</Text>
-                            )}
-                            {aiTips.tips.length > 0 && (
-                                <View style={styles.tipsContainer}>
-                                    <Text style={styles.tipsTitle}>💡 İpuçları:</Text>
-                                    {aiTips.tips.map((tip, idx) => (
-                                        <Text key={idx} style={styles.tipText}>• {tip}</Text>
-                                    ))}
+                            <TouchableOpacity
+                                style={styles.aiHeader}
+                                onPress={() => setShowAIFoods(!showAIFoods)}
+                            >
+                                <View style={styles.aiHeaderLeft}>
+                                    <Ionicons name="sparkles" size={18} color={Colors.secondary} />
+                                    <Text style={styles.aiTitle}>{i18n.t('suggestion_ai_title')}</Text>
+                                    {aiTips.aiFoods.length > 0 && (
+                                        <View style={styles.aiBadge}>
+                                            <Text style={styles.aiBadgeText}>{aiTips.aiFoods.length}</Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.aiRemainingBadge}>
+                                        <Text style={styles.aiRemainingText}>{aiRemaining}/10 {i18n.t('suggestion_ai_remaining')}</Text>
+                                    </View>
                                 </View>
+                                <Ionicons
+                                    name={showAIFoods ? "chevron-up" : "chevron-down"}
+                                    size={20}
+                                    color={Colors.textMuted}
+                                />
+                            </TouchableOpacity>
+
+                            {showAIFoods && (
+                                <>
+                                    {aiTips.message && (
+                                        <Text style={styles.aiMessage}>{aiTips.message}</Text>
+                                    )}
+
+                                    {/* AI Food Cards */}
+                                    {aiTips.aiFoods.length > 0 && (
+                                        <View style={styles.aiFoodsList}>
+                                            {aiTips.aiFoods.map((food, idx) => (
+                                                <FoodCard
+                                                    key={`ai-${food.id}-${idx}`}
+                                                    food={food}
+                                                    index={idx}
+                                                    onPress={handleFoodSelect}
+                                                    isSelected={selectedFood?.id === food.id}
+                                                />
+                                            ))}
+                                        </View>
+                                    )}
+
+                                    {aiTips.tips.length > 0 && (
+                                        <View style={styles.tipsContainer}>
+                                            <Text style={styles.tipsTitle}>{i18n.t('suggestion_tips')}</Text>
+                                            {aiTips.tips.map((tip, idx) => (
+                                                <Text key={idx} style={styles.tipText}>• {tip}</Text>
+                                            ))}
+                                        </View>
+                                    )}
+                                </>
                             )}
                         </View>
                     )}
 
                     {/* Nearby Restaurants Section */}
-                    {isLoadingPlaces && (
+                    {selectedFood && isLoadingPlaces && (
                         <View style={styles.restaurantsSection}>
                             <ActivityIndicator color={Colors.primary} size="small" />
-                            <Text style={styles.aiLoadingText}>Yakındaki restoranlar aranıyor...</Text>
+                            <Text style={styles.aiLoadingText}>
+                                {i18n.t('restaurants_loading_specific', {
+                                    food: i18n.t(`food_${selectedFood.id}_name`, { defaultValue: selectedFood.name })
+                                })}
+                            </Text>
                         </View>
                     )}
 
-                    {restaurants.length > 0 && !isLoadingPlaces && (
+                    {selectedFood && restaurants.length > 0 && !isLoadingPlaces && (
                         <View style={styles.restaurantsSection}>
                             <TouchableOpacity
                                 style={styles.restaurantsHeader}
@@ -267,7 +359,9 @@ export default function SuggestionScreen() {
                             >
                                 <View style={styles.restaurantsHeaderLeft}>
                                     <Ionicons name="restaurant" size={18} color={Colors.primary} />
-                                    <Text style={styles.restaurantsTitle}>Yakındaki Restoranlar</Text>
+                                    <Text style={styles.restaurantsTitle}>
+                                        {selectedFood.emoji} {i18n.t(`food_${selectedFood.id}_name`, { defaultValue: selectedFood.name })}
+                                    </Text>
                                     <View style={styles.restaurantCount}>
                                         <Text style={styles.restaurantCountText}>{restaurants.length}</Text>
                                     </View>
@@ -292,12 +386,25 @@ export default function SuggestionScreen() {
                             )}
                         </View>
                     )}
+
+                    {/* No Restaurants Found */}
+                    {selectedFood && noRestaurantsFound && !isLoadingPlaces && restaurants.length === 0 && (
+                        <View style={styles.emptyRestaurants}>
+                            <Text style={styles.emptyEmoji}>😔</Text>
+                            <Text style={styles.emptyTitle}>{i18n.t('restaurants_empty_title')}</Text>
+                            <Text style={styles.emptyMessage}>
+                                {i18n.t('restaurants_empty_message', {
+                                    food: i18n.t(`food_${selectedFood.id}_name`, { defaultValue: selectedFood.name })
+                                })}
+                            </Text>
+                        </View>
+                    )}
                 </ScrollView>
 
                 {/* Action Buttons */}
                 <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
                     <AnimatedButton
-                        title="Farklı Öneriler"
+                        title={i18n.t('suggestion_refresh_button')}
                         onPress={handleNewSuggestions}
                         variant="secondary"
                         size="medium"
@@ -305,7 +412,7 @@ export default function SuggestionScreen() {
                         style={styles.refreshButton}
                     />
                     <AnimatedButton
-                        title="Ana Sayfa"
+                        title={i18n.t('suggestion_home_button')}
                         onPress={handleStartOver}
                         variant="outline"
                         size="medium"
@@ -313,7 +420,7 @@ export default function SuggestionScreen() {
                     />
                 </Animated.View>
             </SafeAreaView>
-        </LinearGradient>
+        </LinearGradient >
     );
 }
 
@@ -401,6 +508,12 @@ const styles = StyleSheet.create({
     foodList: {
         gap: 8,
     },
+    tapHint: {
+        fontSize: 13,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
     regionalTag: {
         position: 'absolute',
         top: 8,
@@ -426,8 +539,35 @@ const styles = StyleSheet.create({
     aiHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        justifyContent: 'space-between',
         marginBottom: 10,
+    },
+    aiHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    aiBadge: {
+        backgroundColor: Colors.secondary,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    aiBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#fff',
+    },
+    aiRemainingBadge: {
+        backgroundColor: Colors.textMuted + '30',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    aiRemainingText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: Colors.textSecondary,
     },
     aiTitle: {
         fontSize: 14,
@@ -461,6 +601,11 @@ const styles = StyleSheet.create({
         color: Colors.textSecondary,
         marginBottom: 4,
         lineHeight: 18,
+    },
+    aiFoodsList: {
+        marginTop: 12,
+        marginBottom: 12,
+        gap: 8,
     },
     restaurantsSection: {
         marginTop: 20,
@@ -498,6 +643,31 @@ const styles = StyleSheet.create({
     },
     restaurantsList: {
         marginTop: 12,
+    },
+    emptyRestaurants: {
+        marginTop: 20,
+        padding: 24,
+        backgroundColor: Colors.error + '10',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: Colors.error + '30',
+        alignItems: 'center',
+    },
+    emptyEmoji: {
+        fontSize: 40,
+        marginBottom: 12,
+    },
+    emptyTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.text,
+        marginBottom: 8,
+    },
+    emptyMessage: {
+        fontSize: 13,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
     },
     buttonContainer: {
         flexDirection: 'row',
