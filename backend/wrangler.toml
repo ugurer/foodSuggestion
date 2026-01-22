@@ -7,3 +7,8 @@ ENVIRONMENT = "production"
 
 # API keys are set via Cloudflare Dashboard or `wrangler secret put`
 # Do NOT put actual keys here!
+
+[[d1_databases]]
+binding = "DB"
+database_name = "food-suggestion-db"
+database_id = "8f92d207-98a0-49a4-b9e6-bebfe2e85bb9"

@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     Animated,
 } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -40,12 +41,12 @@ export default function AIScreen() {
     const [isConfigured, setIsConfigured] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
     const { location } = useLocation();
+    const { initialPrompt } = useLocalSearchParams<{ initialPrompt?: string }>();
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
 
-        // AI servisini başlat
         const initAI = async () => {
             const success = await aiService.initialize();
             setIsConfigured(success);
@@ -56,6 +57,13 @@ export default function AIScreen() {
                     type: 'ai',
                     text: i18n.t('ai_screen_greeting'),
                 }]);
+
+                // Eğer dışarıdan prompt geldiyse gönder
+                if (initialPrompt) {
+                    setTimeout(() => {
+                        handleAutoSend(initialPrompt);
+                    }, 500);
+                }
             } else {
                 setMessages([{
                     id: '1',
@@ -65,7 +73,40 @@ export default function AIScreen() {
             }
         };
         initAI();
-    }, []);
+    }, [initialPrompt]);
+
+    const handleAutoSend = async (text: string) => {
+        if (!text.trim() || !aiService.isConfigured()) return;
+
+        const userMessage: Message = {
+            id: Date.now().toString(),
+            type: 'user',
+            text: text.trim(),
+        };
+        setMessages(prev => [...prev, userMessage]);
+
+        const loadingId = (Date.now() + 1).toString();
+        setMessages(prev => [...prev, { id: loadingId, type: 'ai', text: '', isLoading: true }]);
+        setIsLoading(true);
+
+        try {
+            const response = await aiService.askAboutFood(text.trim());
+            setMessages(prev => prev.map(m =>
+                m.id === loadingId
+                    ? { ...m, isLoading: false, text: response }
+                    : m
+            ));
+        } catch (error) {
+            setMessages(prev => prev.map(m =>
+                m.id === loadingId
+                    ? { ...m, isLoading: false, text: i18n.t('ai_screen_error_no_response') }
+                    : m
+            ));
+        }
+
+        setIsLoading(false);
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+    };
 
     const handleMoodSelect = async (moodId: string) => {
         if (!aiService.isConfigured()) return;
@@ -187,11 +228,11 @@ export default function AIScreen() {
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     keyboardVerticalOffset={100}
                 >
-                    {/* Mood Selection */}
+                    {/* Mood & Quick Questions */}
                     {messages.length <= 1 && (
                         <Animated.View style={[styles.moodSection, { opacity: fadeAnim }]}>
                             <Text style={styles.moodTitle}>{i18n.t('ai_screen_mood_title')}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                                 <View style={styles.moodList}>
                                     {MOODS.map((mood) => (
                                         <TouchableOpacity
@@ -205,6 +246,30 @@ export default function AIScreen() {
                                         >
                                             <Text style={styles.moodEmoji}>{mood.emoji}</Text>
                                             <Text style={styles.moodLabel}>{i18n.t(`mood_${mood.id}`)}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
+
+                            <Text style={styles.moodTitle}>{i18n.t('feature_ai')}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                <View style={styles.moodList}>
+                                    {[
+                                        { key: 'healthy', icon: '🥗', label: 'ai_chip_healthy' },
+                                        { key: 'dessert', icon: '🧁', label: 'ai_chip_dessert' },
+                                        { key: 'night', icon: '🌙', label: 'ai_chip_night' },
+                                        { key: 'workout', icon: '💪', label: 'ai_chip_workout' },
+                                        { key: 'cheap', icon: '💰', label: 'ai_chip_cheap' },
+                                        { key: 'spicy', icon: '🌶️', label: 'ai_chip_spicy' },
+                                    ].map((item) => (
+                                        <TouchableOpacity
+                                            key={item.key}
+                                            style={styles.moodChip}
+                                            onPress={() => handleAutoSend(i18n.t(item.label || `quick_ai_${item.key}`))}
+                                            disabled={isLoading}
+                                        >
+                                            <Text style={styles.moodEmoji}>{item.icon}</Text>
+                                            <Text style={styles.moodLabel}>{i18n.t(item.label || `quick_ai_${item.key}`)}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -228,7 +293,22 @@ export default function AIScreen() {
                                 ]}
                             >
                                 {message.isLoading ? (
-                                    <ActivityIndicator color={Colors.primary} />
+                                    <View style={styles.loadingContainer}>
+                                        <Animated.Text style={[
+                                            styles.loadingEmoji,
+                                            {
+                                                transform: [{
+                                                    rotate: fadeAnim.interpolate({
+                                                        inputRange: [0, 1],
+                                                        outputRange: ['0deg', '360deg']
+                                                    })
+                                                }]
+                                            }
+                                        ]}>
+                                            {['🥘', '🍕', '🍣', '🍔'][Math.floor(Date.now() / 1000) % 4]}
+                                        </Animated.Text>
+                                        <ActivityIndicator color={Colors.primary} size="small" style={{ marginTop: 8 }} />
+                                    </View>
                                 ) : (
                                     <>
                                         <Text style={[
@@ -377,6 +457,14 @@ const styles = StyleSheet.create({
     },
     userMessageText: {
         color: '#fff',
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+    },
+    loadingEmoji: {
+        fontSize: 32,
     },
     foodsContainer: {
         marginTop: 12,

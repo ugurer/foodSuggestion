@@ -6,6 +6,7 @@ const KEYS = {
     HISTORY: '@suggest_food_history',
     PREFERENCES: '@suggest_food_preferences',
     NOTIFICATION_ENABLED: '@suggest_food_notifications',
+    ONBOARDING_COMPLETED: '@suggest_food_onboarding_completed',
 };
 
 export interface UserPreferences {
@@ -15,6 +16,7 @@ export interface UserPreferences {
     notificationsEnabled: boolean;
     notificationTime: string; // "HH:mm" format
     language: 'auto' | 'en' | 'tr'; // New field
+    preferredCuisine?: string;
 }
 
 export interface HistoryItem {
@@ -32,6 +34,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     notificationsEnabled: false,
     notificationTime: '12:00',
     language: 'auto',
+    preferredCuisine: undefined,
 };
 
 class StorageService {
@@ -151,6 +154,28 @@ class StorageService {
             await AsyncStorage.setItem(KEYS.PREFERENCES, JSON.stringify(DEFAULT_PREFERENCES));
         } catch (error) {
             console.error('Reset preferences error:', error);
+        }
+    }
+
+    getLanguagePreference(): 'auto' | 'en' | 'tr' {
+        return 'tr';
+    }
+
+    async isOnboardingCompleted(): Promise<boolean> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.ONBOARDING_COMPLETED);
+            return val === 'true';
+        } catch (error) {
+            console.error('Get onboarding status error:', error);
+            return false;
+        }
+    }
+
+    async setOnboardingCompleted(completed: boolean): Promise<void> {
+        try {
+            await AsyncStorage.setItem(KEYS.ONBOARDING_COMPLETED, completed ? 'true' : 'false');
+        } catch (error) {
+            console.error('Set onboarding status error:', error);
         }
     }
 }

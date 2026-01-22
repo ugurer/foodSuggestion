@@ -23,6 +23,8 @@ export default function RootLayout() {
         }
     }, [error]);
 
+    const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+
     useEffect(() => {
         const prepare = async () => {
             try {
@@ -31,6 +33,10 @@ export default function RootLayout() {
                 if (prefs.language) {
                     setLanguage(prefs.language);
                 }
+
+                // Check onboarding status
+                const completed = await storageService.isOnboardingCompleted();
+                setOnboardingCompleted(completed);
             } catch (e) {
                 console.warn('Error loading preferences:', e);
             } finally {
@@ -47,11 +53,16 @@ export default function RootLayout() {
         return null;
     }
 
+    if (onboardingCompleted === null) {
+        return null; // Still loading onboarding status
+    }
+
     return (
         <ErrorBoundary>
             <>
                 <StatusBar style="light" />
-                <Stack screenOptions={{ headerShown: false }}>
+                <Stack screenOptions={{ headerShown: false }} initialRouteName={onboardingCompleted ? "(tabs)" : "onboarding"}>
+                    <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen name="mood" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="suggestion" options={{ presentation: 'modal' }} />

@@ -56,6 +56,7 @@ export const Colors = {
         card: ['rgba(31, 66, 135, 0.8)', 'rgba(15, 52, 96, 0.6)'],
         button: ['#E67E22', '#D35400'],
         buttonSecondary: ['#16A085', '#0E6655'],
+        info: ['#3498DB', '#2980B9'],
     },
 
     // Mood colors - more refined

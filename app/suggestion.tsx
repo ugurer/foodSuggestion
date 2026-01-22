@@ -7,7 +7,7 @@ import * as Location from 'expo-location';
 import { Colors } from '../constants/colors';
 import { getMoodById, Mood } from '../constants/moods';
 import { foodService, FoodSuggestion, storageService, aiService, placesService, NearbyRestaurant, AIRecommendation, rateLimitService } from '../services';
-import { FoodCard, AnimatedButton, RestaurantCard } from '../components';
+import { FoodCard, AnimatedButton, RestaurantCard, Confetti } from '../components';
 import { Food } from '../constants/foods';
 import { API_CONFIG } from '../constants/apiConfig';
 import i18n from '../constants/i18n';
@@ -20,7 +20,7 @@ interface AITips {
 
 export default function SuggestionScreen() {
     const router = useRouter();
-    const { moodId, city } = useLocalSearchParams<{ moodId: string; city: string }>();
+    const { moodId, city, cuisine, foodId } = useLocalSearchParams<{ moodId: string; city: string; cuisine?: string; foodId?: string }>();
 
     const [mood, setMood] = useState<Mood | null>(null);
     const [suggestion, setSuggestion] = useState<FoodSuggestion | null>(null);
@@ -33,6 +33,7 @@ export default function SuggestionScreen() {
     const [showRestaurants, setShowRestaurants] = useState(false);
     const [showAIFoods, setShowAIFoods] = useState(true);
     const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+    const [showConfetti, setShowConfetti] = useState(false);
     const [aiRemaining, setAiRemaining] = useState<number>(10);
     const [noRestaurantsFound, setNoRestaurantsFound] = useState(false);
 
@@ -130,7 +131,7 @@ export default function SuggestionScreen() {
                 const foundMood = getMoodById(moodId);
                 setMood(foundMood || null);
 
-                const initialSuggestion = await foodService.getSuggestions(moodId, city || undefined);
+                const initialSuggestion = await foodService.getSuggestions(moodId, city || undefined, 4, cuisine || undefined);
                 setSuggestion(initialSuggestion);
                 setPreviousFoodIds(initialSuggestion.foods.map(f => f.id));
 
@@ -141,12 +142,24 @@ export default function SuggestionScreen() {
 
                 // AI ile zenginleştir
                 loadAIEnhancement(moodId, initialSuggestion.foods.map(f => f.name), city || undefined);
-
-                // Artık otomatik restoran aramıyoruz - kullanıcı yemek seçince arayacak
+            } else if (foodId) {
+                // Direkt yemek seçimi yapıldıysa (Home screen highlights)
+                const food = await foodService.getFoodById(foodId);
+                if (food) {
+                    setMood(getMoodById('happy') || null);
+                    const directSuggestion = {
+                        foods: [food],
+                        mood: 'happy',
+                        message: 'suggestion_msg_direct',
+                        isRegional: false
+                    };
+                    setSuggestion(directSuggestion);
+                    handleFoodSelect(food);
+                }
             }
         };
         loadSuggestions();
-    }, [moodId, city]);
+    }, [moodId, city, foodId]);
 
     const handleNewSuggestions = useCallback(async () => {
         if (moodId) {
@@ -154,7 +167,7 @@ export default function SuggestionScreen() {
             setRestaurants([]);
             setShowRestaurants(false);
 
-            const newSuggestion = await foodService.getNewSuggestions(moodId, previousFoodIds, city || undefined);
+            const newSuggestion = await foodService.getNewSuggestions(moodId, previousFoodIds, city || undefined, 4, cuisine || undefined);
             setSuggestion(newSuggestion);
             setPreviousFoodIds(prev => [...prev, ...newSuggestion.foods.map(f => f.id)]);
             setKey(prev => prev + 1);
@@ -201,8 +214,20 @@ export default function SuggestionScreen() {
         router.replace('/');
     };
 
+    const handleConfirmFood = () => {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+    };
+
     if (!mood || !suggestion) {
-        return null;
+        return (
+            <LinearGradient
+                colors={Colors.gradients.night as unknown as [string, string, ...string[]]}
+                style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}
+            >
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </LinearGradient>
+        );
     }
 
     return (
@@ -231,6 +256,14 @@ export default function SuggestionScreen() {
                             <View style={styles.regionBadge}>
                                 <Ionicons name="location" size={14} color={Colors.success} />
                                 <Text style={styles.regionLabel}>{i18n.t(suggestion.regionName)}</Text>
+                            </View>
+                        )}
+                        {cuisine && (
+                            <View style={styles.cuisineBadge}>
+                                <Ionicons name="restaurant" size={14} color={Colors.secondary} />
+                                <Text style={styles.cuisineLabel}>
+                                    {i18n.t(`cuisine_${cuisine.toLowerCase().replace(/\s/g, '_')}`, { defaultValue: cuisine })}
+                                </Text>
                             </View>
                         )}
                     </View>
@@ -399,7 +432,19 @@ export default function SuggestionScreen() {
                             </Text>
                         </View>
                     )}
+
+                    {selectedFood && (
+                        <AnimatedButton
+                            title={i18n.t('suggestion_perfect_match') || 'Bu Tam Bana Göre! 🎉'}
+                            onPress={handleConfirmFood}
+                            size="large"
+                            fullWidth
+                            style={styles.confirmButton}
+                        />
+                    )}
                 </ScrollView>
+
+                <Confetti active={showConfetti} />
 
                 {/* Action Buttons */}
                 <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
@@ -480,6 +525,20 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         color: Colors.success,
+    },
+    cuisineBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.secondary + '20',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        gap: 4,
+    },
+    cuisineLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.secondary,
     },
     messageContainer: {
         paddingHorizontal: 24,
@@ -677,5 +736,9 @@ const styles = StyleSheet.create({
     },
     refreshButton: {
         flex: 1,
+    },
+    confirmButton: {
+        marginTop: 20,
+        marginBottom: 20,
     },
 });

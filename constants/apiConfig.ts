@@ -13,7 +13,7 @@ export const API_CONFIG = {
 
     // Rate limits (per user per day) - enforced client-side for UX
     limits: {
-        aiRecommendations: 20,
+        aiRecommendations: 10,
         placesSearches: 20,
     },
 
@@ -23,6 +23,7 @@ export const API_CONFIG = {
         placesSearch: '/api/places/search',
         placesNearby: '/api/places/nearby',
         health: '/health',
+        chat: '/api/chat',
     },
 };
 

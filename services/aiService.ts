@@ -147,15 +147,34 @@ class AIService {
         return matchedFoods.slice(0, 3);
     }
 
-    async askAboutFood(foodName: string): Promise<string> {
+    async askAboutFood(query: string): Promise<string> {
         // Check rate limit
         const rateCheck = await rateLimitService.checkAILimit(API_CONFIG.limits.aiRecommendations);
         if (!rateCheck.allowed) {
             return i18n.t('ai_service_limit_exceeded');
         }
 
-        // For askAboutFood, we'd need another endpoint. For now, return a placeholder.
-        return i18n.t('ai_service_endpoint_not_ready', { food: foodName });
+        try {
+            const language = i18n.locale.split('-')[0];
+            const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.chat}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: query.trim(),
+                    language,
+                }),
+            });
+
+            if (!response.ok) {
+                return i18n.t('ai_screen_error_no_response');
+            }
+
+            const parsed = await response.json();
+            return parsed.response || i18n.t('ai_screen_error_no_response');
+        } catch (error) {
+            console.error('AI chat error:', error);
+            return i18n.t('ai_screen_error_generic');
+        }
     }
 }
 

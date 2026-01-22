@@ -23,6 +23,10 @@ export default {
 
         try {
             // Route handling
+            if (path === '/api/foods' && request.method === 'GET') {
+                return await handleGetFoods(request, env);
+            }
+
             if (path === '/api/recommend' && request.method === 'POST') {
                 return await handleRecommend(request, env);
             }
@@ -33,6 +37,10 @@ export default {
 
             if (path === '/api/places/nearby' && request.method === 'POST') {
                 return await handlePlacesNearby(request, env);
+            }
+
+            if (path === '/api/chat' && request.method === 'POST') {
+                return await handleChat(request, env);
             }
 
             if (path === '/health') {
@@ -260,14 +268,116 @@ Return ONLY JSON, nothing else.`;
 }
 
 /**
+ * Get all foods from D1 database
+ */
+async function handleGetFoods(request, env) {
+    try {
+        const url = new URL(request.url);
+        const region = url.searchParams.get('region');
+
+        let query = 'SELECT * FROM foods';
+        let params = [];
+
+        if (region) {
+            // Check if the region exists in the regions JSON array
+            // D1 supports JSON functions like json_each
+            query = "SELECT * FROM foods WHERE EXISTS (SELECT 1 FROM json_each(regions) WHERE value = ?)";
+            params = [region];
+        }
+
+        const { results } = await env.DB.prepare(query).bind(...params).all();
+
+        // Transform JSON strings back to arrays
+        const foods = results.map(food => ({
+            ...food,
+            moods: JSON.parse(food.moods || '[]'),
+            regions: JSON.parse(food.regions || '[]'),
+            isVegetarian: !!food.is_vegetarian,
+            isVegan: !!food.is_vegan,
+            isGlutenFree: !!food.is_gluten_free,
+        }));
+
+        return jsonResponse({ foods });
+    } catch (error) {
+        console.error('D1 Error:', error);
+        return jsonResponse({ error: 'Database error' }, 500);
+    }
+}
+
+/**
  * Helper to create JSON response with CORS headers
  */
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
         status,
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
             ...CORS_HEADERS,
         },
     });
+}
+
+/**
+ * Handle AI chat requests
+ */
+async function handleChat(request, env) {
+    const body = await request.json();
+    const { query, language = 'en' } = body;
+
+    if (!query) {
+        return jsonResponse({ error: 'Query is required' }, 400);
+    }
+
+    const prompt = buildChatPrompt(query, language);
+
+    const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${env.GEMINI_API_KEY}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+            }),
+        }
+    );
+
+    const data = await response.json();
+
+    if (data.error) {
+        return jsonResponse({ error: data.error.message }, 500);
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return jsonResponse({ response: text });
+}
+
+/**
+ * Build Chat prompt
+ */
+function buildChatPrompt(query, language) {
+    if (language === 'tr') {
+        return `Sen bir yemek ve mutfak uzmanısın. Kullanıcıya bir arkadaş gibi yardımcı ol.
+        
+Kullanıcının sorusu: "${query}"
+
+Yanıt kuralları:
+1. Cana yakın ve iştah açıcı bir dille yanıt ver.
+2. Genelde kısa ve öz yanıtlar ver.
+3. Yanıtında ilgili yemek emojileri kullan.
+4. Sadece yemek ve mutfakla ilgili soruları yanıtla. Diğer konularda nazikçe reddet.
+
+Yanıtını doğrudan metin olarak ver.`;
+    } else {
+        return `You are a food and culinary expert. Help the user like a friendly companion.
+        
+User's query: "${query}"
+
+Response rules:
+1. Respond in a friendly and appetizing tone.
+2. Keep it concise.
+3. Use relevant food emojis.
+4. Only answer food and culinary related questions. Politely decline other topics.
+
+Provide your response as direct text.`;
+    }
 }

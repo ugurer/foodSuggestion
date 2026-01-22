@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Animated, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,13 @@ import { Colors } from '../constants/colors';
 import { MOODS, Mood } from '../constants/moods';
 import { MoodCard, AnimatedButton } from '../components';
 import i18n from '../constants/i18n';
+import { CUISINES } from '../constants/foods';
 
 export default function MoodScreen() {
     const router = useRouter();
     const { city } = useLocalSearchParams<{ city: string }>();
     const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
+    const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
@@ -31,7 +33,11 @@ export default function MoodScreen() {
         if (selectedMood) {
             router.push({
                 pathname: '/suggestion',
-                params: { moodId: selectedMood.id, city: city || '' },
+                params: {
+                    moodId: selectedMood.id,
+                    city: city || '',
+                    cuisine: selectedCuisine || ''
+                },
             });
         }
     };
@@ -70,12 +76,45 @@ export default function MoodScreen() {
                     </View>
                 </Animated.View>
 
-                {/* Mood Grid */}
+                {/* Content */}
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Cuisine Selection */}
+                    <Animated.View style={[styles.cuisineSection, { opacity: fadeAnim }]}>
+                        <Text style={styles.sectionLabel}>{i18n.t('category_cuisine')}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cuisineScroll}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.cuisineChip,
+                                    !selectedCuisine && styles.cuisineChipSelected
+                                ]}
+                                onPress={() => setSelectedCuisine(null)}
+                            >
+                                <Text style={[styles.cuisineText, !selectedCuisine && styles.cuisineTextSelected]}>
+                                    {i18n.t('cuisine_any')}
+                                </Text>
+                            </TouchableOpacity>
+                            {CUISINES.map((cuisine) => (
+                                <TouchableOpacity
+                                    key={cuisine}
+                                    style={[
+                                        styles.cuisineChip,
+                                        selectedCuisine === cuisine && styles.cuisineChipSelected
+                                    ]}
+                                    onPress={() => setSelectedCuisine(cuisine)}
+                                >
+                                    <Text style={[styles.cuisineText, selectedCuisine === cuisine && styles.cuisineTextSelected]}>
+                                        {i18n.t(`cuisine_${cuisine.toLowerCase().replace(/\s/g, '_')}`, { defaultValue: cuisine })}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </Animated.View>
+
+                    <Text style={styles.sectionLabel}>{i18n.t('home_title')}</Text>
                     <Animated.View
                         style={[
                             styles.moodGrid,
@@ -218,5 +257,42 @@ const styles = StyleSheet.create({
     buttonContainer: {
         paddingHorizontal: 24,
         paddingBottom: 24,
+    },
+    cuisineSection: {
+        marginBottom: 24,
+        paddingHorizontal: 8,
+    },
+    sectionLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: Colors.textSecondary,
+        marginBottom: 12,
+        marginLeft: 8,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    cuisineScroll: {
+        paddingVertical: 4,
+    },
+    cuisineChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: Colors.surfaceLight + '40',
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
+    },
+    cuisineChipSelected: {
+        backgroundColor: Colors.primary,
+        borderColor: Colors.primary,
+    },
+    cuisineText: {
+        color: Colors.text,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    cuisineTextSelected: {
+        color: '#fff',
     },
 });
